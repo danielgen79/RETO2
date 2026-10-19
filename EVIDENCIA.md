@@ -815,6 +815,62 @@ refactor los habría hecho fallar.
 **Commit:** `refactor: separa MIN_PAGE de DEFAULT_PAGE en paginate`
 ## 5. Documentación y review
 ### Hallazgos del review
+**Preparación:** usé `/clear` antes del review para que Claude Code revisara
+la rama sin el contexto de haber escrito el código (lección del ejercicio
+de debugging).
+
+**Prompt:**
+Revisa mi rama como si fuera un pull request ajeno. Compara contra la
+rama base con: git diff solucion-clase4...reto-m2
+Ignora EVIDENCIA.md: no es código.
+
+Lee CLAUDE.md para conocer las convenciones del proyecto. La feature
+agrega paginación a GET /users y GET /reports.
+
+Revisa por categorías:
+1. Correctitud
+2. Seguridad
+3. Manejo de errores
+4. Consistencia con CLAUDE.md
+5. Tests
+6. Legibilidad y mantenibilidad
+
+Para cada hallazgo indica: archivo y línea, severidad (alta, media, baja),
+descripción y sugerencia. Si una categoría no tiene hallazgos, dilo
+explícitamente. No modifiques ningún archivo.
+
+**Resultado:** sin hallazgos de severidad alta. Seguridad y manejo de
+errores, sin hallazgos. 13 hallazgos de severidad media o baja.
+
+**Verificación de una afirmación de la IA:** el review dijo que no pudo
+correr ruff "porque no está instalado". En realidad lo ejecutó fuera del
+`.venv`. Ruff sí está instalado y pasa limpio.
+
+**Clasificación:**
+
+| # | Hallazgo | Severidad | Clasificación | Por qué |
+|---|---|---|---|---|
+| 1 | `page` enorme crea un entero grande | Baja | Aceptado como menor | Decidido en las ambigüedades: Python lo maneja y devuelve `items: []`. |
+| 2 | `Sequence[T]` admite `str` | Baja | Aceptado como menor | Riesgo teórico; ningún llamador pasa texto. |
+| 3 | Orden de parámetros en `list_reports` | Baja | Aceptado como menor | El único llamador es la ruta, que usa keywords. |
+| 4 | Rename `r` → `report` mezclado con el fix | Baja | Aceptado como menor | Documentado en la evidencia del bug. |
+| 5 | Nombres de tests en español | Baja | Falso positivo | Es la convención del repo. |
+| 6 | Falta recorte de `page` por endpoint | Media | **Arreglado** | Mi propia convención en CLAUDE.md lo pide por endpoint. Se agregaron tests con `page=0` y `page=-5` en ambos recursos. |
+| 7 | `size=500` solo verifica `size` | Media | Aceptado como menor | Mantengo la decisión de la iteración 8: el test unitario ya verifica `len(items) == 100`; repetirlo exigiría crear 101 registros sin cubrir una capa nueva. |
+| 8 | Falta caso de última página completa | Baja | Aceptado como menor | Los tests de offset fijan valores exactos; la mutación 2 lo confirmó. |
+| 9 | `_create_reports` definido después de usarse | Baja | **Arreglado** | Movido junto a `_payload`. |
+| 10 | Tests asumen 4 usuarios semilla | Baja | Aceptado como menor | La semilla es dato fijo del proyecto y se declara en el Arrange. |
+| 11 | `Query` repetido en ambas rutas | Baja | Aceptado como menor | Con dos recursos no se justifica una abstracción; se menciona en el README como extensión futura. |
+| 12 | Sintaxis moderna `class Page[T]` | Baja | Falso positivo | Requiere Python ≥ 3.12; CLAUDE.md exige compatibilidad desde 3.10. |
+| 13 | Los códigos CA-XX no se explican en el repo | Baja | **Arreglado en el README** | Se agrega la tabla de criterios al README. |
+
+**Nota sobre el hallazgo 7:** el review lo marcó como severidad media, pero
+ya lo había evaluado en la iteración 8. Mantuve la decisión con su
+justificación en lugar de aceptar automáticamente la sugerencia.
+
+**Correcciones:** `53 passed` (4 tests nuevos), `ruff check .` limpio.
+
+**Commit:** `test: recorte de page por endpoint y helper antes de su uso (review)`
 ### Docstrings, README y CHANGELOG
 
 ## Reflexión final
