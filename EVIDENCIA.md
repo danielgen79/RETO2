@@ -406,7 +406,7 @@ ruff check .: All checks passed!
 |---|---|---|
 | `paginate` ordena por `id` | **Rechazada.** El servicio filtra y ordena; `paginate` solo recorta y corta. | Una función genérica `Page[T]` no debe asumir que todo `T` tiene `id`. Acoplaba la lógica compartida a un detalle de los recursos actuales. |
 | "Los valores límite no se repiten en tests" (convención propuesta para CLAUDE.md) | **Rechazada.** Los tests de límites verifican los valores literales (1, 20, 100). | Si los tests importan `MAX_SIZE`, una mutación de 100 a 1000 cambia también el valor esperado y el test sigue en verde. La regla habría hecho invisibles las mutaciones. |
-
+| Helper de tests `_crear_reportes(client, cantidad)` | **Rechazada.** Renombrado a `_create_reports(client, count)` con `assert` de 201. | Rompía la convención 4 (identificadores en inglés). El `assert` hace que un fallo al crear datos se reporte en su origen. |
 #### Aceptado
 
 | Propuesta de la IA | Por qué la acepté |
@@ -500,6 +500,57 @@ No toques otros archivos. Al terminar corre pytest y ruff check .
   pide mutaciones a mano.
 
 **Commit:** `test: tests unitarios de paginate`
+
+#### Iteración 6 · Tests de integración de los endpoints
+**Prompt:**
+Agrega tests de paginación para los endpoints, en tests/test_users.py y
+tests/test_reports.py (un archivo por recurso, según CLAUDE.md). Escríbelos
+desde los criterios, no desde el código:
+
+- Arrange-act-assert con comentarios, docstring con el criterio (CA-XX),
+  nombres con el formato test_<accion>_<condicion>_devuelve_<codigo>.
+- Valores esperados como literales; no importes las constantes.
+- Recuerda que users tiene 4 usuarios semilla: calcula los totales
+  esperados contando con ellos.
+- Reutiliza los helpers de payload que ya existen en cada archivo.
+
+En ambos endpoints:
+1. Sin parámetros → 200 con page 1 y size 20 (CA-01, CA-02).
+2. size=500 → 200 con size 100, no 422 (CA-03).
+3. size=0 → 200 con size 1 (CA-03).
+4. page=abc, size=2.5 y page vacío → 422 (CA-04).
+5. Página fuera de rango → 200, items vacío y total correcto (CA-08).
+6. Recorrido completo con size=2: juntar los ids de todas las páginas y
+   verificar que no se repiten, no faltan y están en orden ascendente (CA-09).
+
+Solo en /reports:
+7. Con 5 reportes del usuario 1 y 2 del usuario 2, user_id=1&size=2 →
+   total 5, 2 items y todos del usuario 1 (CA-06, CA-07).
+8. user_id de un usuario sin reportes → 200, items vacío y total 0 (CA-07).
+
+No toques el código de la aplicación. Al terminar corre pytest y ruff check .
+**Resultado:** 18 ejecuciones nuevas entre `test_users.py` y `test_reports.py`.
+`48 passed`, `ruff check .` limpio.
+
+**Revisión:**
+- El test de `size=500` espera 200 con `size == 100`, no 422: valida el
+  recorte de CA-03 a través de HTTP, confirmando que las rutas no tienen
+  `ge`/`le`.
+- Los recorridos completos comparan contra la lista exacta de ids
+  (`[1, 2, 3, 4]` en users, `[1, 2, 3, 4, 5]` en reports), así que detectan
+  repeticiones, saltos y orden incorrecto en una sola aserción (CA-09).
+- Los totales de users cuentan los 4 usuarios semilla.
+- CA-06 y CA-07 se prueban juntos: 5 reportes del usuario 1 y 2 del usuario
+  2, con `user_id=1&size=2` → total 5, 2 items, todos del usuario 1.
+
+**Rechazo:** la primera versión creó el helper `_crear_reportes(client,
+cantidad, ...)`. Lo rechacé porque rompe la convención 4 de CLAUDE.md
+(identificadores en inglés; solo los nombres de los tests van en español).
+También pedí que el helper verifique que cada POST devuelva 201, para que un
+fallo al crear datos se reporte en su origen y no como un total incorrecto
+más adelante. La IA lo corrigió a `_create_reports(client, count, user_id=1)`.
+
+**Commit:** `test: tests de paginación en GET /users y GET /reports`
 
 ### Reporte de cobertura
 ### Mutaciones a mano
