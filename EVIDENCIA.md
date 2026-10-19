@@ -1058,3 +1058,9 @@ Fue un reto interesante donde apredí varias cosas.
 
 En general este tipo de ejercicios me ayudarán con códigos reales en mi trabajo, para poder hacer refactorizaciones mas eficientes y fiables, 
 sobre todo que esté documentado todo el proceso, la codificación se implementa más rápido con la IA, se dedica mas tiempo a revisar, verificar y documentar.
+
+**Nota sobre el historial:** el commit `556d2a1` contiene el CHANGELOG y la
+actualización de versión (`CHANGELOG.md`, `main.py`, `pyproject.toml`), pero
+por error se registró con el mensaje "docs: evidencia del CHANGELOG". El
+contenido es correcto; no reescribí el historial para no arriesgar los
+commits ya hechos.
