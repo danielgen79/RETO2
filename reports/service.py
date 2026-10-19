@@ -1,6 +1,6 @@
 """Lógica de negocio del recurso `reports`."""
 from core import errors
-from core.pagination import Page
+from core.pagination import Page, paginate
 from reports import repository
 from reports.schemas import Report, ReportCreate
 
@@ -23,4 +23,8 @@ def get_report(report_id: int) -> Report:
 
 
 def list_reports(page: int, size: int, user_id: int | None = None) -> Page[Report]:
-    raise NotImplementedError
+    reports = repository.list_all()
+    if user_id is not None:
+        reports = [r for r in reports if r.user_id == user_id]
+    reports = sorted(reports, key=lambda report: report.id)
+    return paginate(reports, page, size)
