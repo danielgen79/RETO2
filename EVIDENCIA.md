@@ -6,23 +6,29 @@
 
 ## 0. Línea base
 
-Rama "reto-m2" creada desde "solucion-clase4". Dependencias instaladas con
-pip install -r requirements.txt`.
+Rama `reto-m2` creada desde `solucion-clase4`. Dependencias instaladas con
+`pip install -r requirements.txt`.
 
+```
 > pytest
 16 passed in 0.26s
 
 > ruff check .
 All checks passed!
-
+```
 
 ## 1. Especificación y contexto
+
 ### Exploración del repo
+**Prompt:**
+```
 Lee CLAUDE.md y explora el repo. Resúmeme la arquitectura: capas, dónde viven
 rutas, modelos, servicios/repositorio y tests, y las convenciones que debo
 respetar. No modifiques ningún archivo.
+```
 
 **Respuesta de Claude Code:**
+```
 Arquitectura de m2-api-base
 
 API REST con FastAPI y Pydantic v2. Los datos viven en memoria, sin base de datos. No modifiqué ningún archivo.
@@ -94,6 +100,7 @@ Desviaciones del código respecto a CLAUDE.md
 - Identificador en español: nombre en export_to_file rompe la convención de identificadores en inglés.
 - Ruta de prueba sin implementar: /users/search aparece en CLAUDE.md, pero no existe todavía en users/routes.py.
 - unauthorized sin documentar: CLAUDE.md lista tres funciones de errores, pero core/errors.py tiene también unauthorized.
+```
 
 #### Mis notas sobre la exploración
 La exploración cambió mi borrador de criterios en tres puntos:
@@ -123,28 +130,32 @@ por su identificador (CA-XX).
 
 ### Plan de implementación propuesto por la IA
 **Prompt:**
+```
 Voy a implementar paginación con estos criterios:
-  1. GET /users y GET /reports aceptan ?page= y ?size=, ambos opcionales.
-  2. Valores por defecto: page=1, size=20.
-  3. size se recorta a 1..100 y page menor a 1 se recorta a 1. No devuelven error.
-  4. Valores no numéricos (page=abc, size=2.5) → 422.
-  5. La respuesta es {items, total, page, size}, con los valores ya recortados en page y size.
-  6. total cuenta todos los registros que cumplen el filtro, no solo los de la página.
-     7 .En GET /reports, ?user_id= se combina con la paginación.
-  8. Una página fuera de rango → 200 con items: [] y el total correcto.
-     9 .El orden es estable por id ascendente; recorrer todas las páginas no repite ni salta elementos.
-     10.La lógica vive en una sola función compartida en core/ y la usan ambos servicios.
-     Antes de escribir código:
-  1. Lista los archivos que crearías o modificarías, respetando las capas.
-  2. Dime qué tests existentes de test_users.py y test_reports.py se rompen
-     al cambiar la respuesta de lista a objeto.
-  3. Propón cómo modelar la respuesta paginada en Pydantic para reutilizarla
-     en ambos recursos.
-  4. Redacta la convención nueva para agregar a CLAUDE.md sobre core/pagination.py.
-  5. Señala ambigüedades en mis criterios.
-     No implementes nada todavía.
-	 
+1. GET /users y GET /reports aceptan ?page= y ?size=, ambos opcionales.
+2. Valores por defecto: page=1, size=20.
+3. size se recorta a 1..100 y page menor a 1 se recorta a 1. No devuelven error.
+4. Valores no numéricos (page=abc, size=2.5) → 422.
+5. La respuesta es {items, total, page, size}, con los valores ya recortados en page y size.
+6. total cuenta todos los registros que cumplen el filtro, no solo los de la página.
+7. En GET /reports, ?user_id= se combina con la paginación.
+8. Una página fuera de rango → 200 con items: [] y el total correcto.
+9. El orden es estable por id ascendente; recorrer todas las páginas no repite ni salta elementos.
+10. La lógica vive en una sola función compartida en core/ y la usan ambos servicios.
+
+Antes de escribir código:
+1. Lista los archivos que crearías o modificarías, respetando las capas.
+2. Dime qué tests existentes de test_users.py y test_reports.py se rompen
+   al cambiar la respuesta de lista a objeto.
+3. Propón cómo modelar la respuesta paginada en Pydantic para reutilizarla
+   en ambos recursos.
+4. Redacta la convención nueva para agregar a CLAUDE.md sobre core/pagination.py.
+5. Señala ambigüedades en mis criterios.
+No implementes nada todavía.
+```
+
 **Respuesta de Claude Code:**
+```
 Plan de paginación (sin implementar)
 
 1. Archivos a crear o modificar
@@ -238,6 +249,7 @@ Texto propuesto, para la sección Convenciones y una línea en Estructura:
 8. Compatibilidad hacia atrás. Cambiar la respuesta de lista a objeto rompe a cualquier cliente existente de GET /users y GET /reports. Confirma que es un cambio aceptado, sin versionado.
 9. Criterio 5 y las claves de la respuesta. size devuelve el tamaño solicitado ya recortado, no el número real de items de la página. Es decir, la última página puede tener menos items que size. Lo digo para que no sea una sorpresa.
 10. Recorte silencioso. El recorte sin error significa que un cliente con size=500 recibe 100 y solo lo nota leyendo size en la respuesta. Es lo que pides y es coherente con el criterio 5. Solo señalo que es la única señal.
+```
 
 **Hallazgo importante:** `test_list_users_devuelve_los_seed` seguiría pasando
 por coincidencia, porque el objeto nuevo también tiene 4 claves. Sin revisar
@@ -264,11 +276,42 @@ Estas fueron mis decisiones:
 **Fuera de alcance:** las desviaciones a CLAUDE.md que encontró la
 exploración (`HTTPException` en rutas, `export.py` saltándose el servicio,
 identificador `nombre`) no se corrigen en esta feature.
+
 ### Contexto dado a la IA
+El contexto se construyó en tres capas, de lo general a lo específico:
+
+**1. Convenciones del proyecto (CLAUDE.md).** Claude Code leyó el CLAUDE.md del
+repo al inicio de la sesión. De ahí obtuvo la arquitectura en capas
+(routes → service → repository), el catálogo de errores de core/errors.py,
+las reglas de estilo (ruff, línea de 100, identificadores en inglés, mensajes
+en español) y las carpetas fuera de límites (migrations/, legacy/).
+
+**2. Exploración del código.** Antes de definir la feature, pedí una exploración
+sin modificar archivos. Después, en el prompt del esqueleto, referencié de forma
+explícita `@users/routes.py`, `@users/service.py` y `@CLAUDE.md` como modelo de
+estilo y capas. Archivos relevantes:
+
+- users/routes.py, users/service.py y users/schemas.py: el patrón de
+  referencia que debe seguir el código nuevo.
+- reports/routes.py y reports/service.py: el segundo recurso a paginar, que
+  ya tiene el filtro ?user_id=.
+- users/repository.py y reports/repository.py: cómo se listan los datos
+  (list_all) y la existencia de datos semilla en users.
+- core/errors.py: el catálogo de errores de dominio.
+- tests/conftest.py, tests/test_users.py y tests/test_reports.py: las
+  fixtures (_reset_data, client) y la convención de nombres de tests.
+
+**3. Reglas de negocio escritas por mí.** Los 10 criterios de aceptación y
+las decisiones sobre las ambigüedades que detectó la IA. La IA puede encontrar
+el contexto del repo, pero no puede adivinar estas reglas: tienen que venir de
+la especificación.
+
 **Convención nueva en CLAUDE.md.** La feature introduce core/pagination.py
-como lógica compartida, por lo que se agregará una sección de Paginación a
-CLAUDE.md antes de generar el código. Así, futuras features (o futuras
-sesiones de IA) paginan de la misma forma sin reimplementar el recorte.
+como lógica compartida, por lo que se agregó una sección de Paginación a
+CLAUDE.md antes de generar el código (iteración 1). Así, futuras features
+(o futuras sesiones de IA) paginan de la misma forma sin reimplementar el
+recorte.
+
 ### Patrón elegido y justificación
 **Patrón:** skeleton-first, ejecutado de forma incremental (una iteración
 corta por paso, con revisión del diff y un commit al final de cada una).
@@ -301,10 +344,14 @@ la ubicación de la lógica compartida no estaban definidos al inicio, y los
 tests habrían dependido de decisiones de diseño todavía abiertas. Con
 skeleton-first, las firmas se fijan primero y los tests se escriben después
 desde los criterios, no desde la implementación.
+
 ## 2. Generación de código
+
 ### Iteraciones (prompt → respuesta → revisión → ajuste)
+
 #### Iteración 1 · Convención de paginación en CLAUDE.md
 **Prompt:**
+```
 Decisiones sobre tu plan:
   - Acepto tus propuestas para las ambigüedades 1-5 y 7-10.
   - Rechazo que paginate ordene por id: paginate solo recorta y corta. El
@@ -315,6 +362,8 @@ Decisiones sobre tu plan:
 
   Actualiza solo CLAUDE.md con la convención de paginación corregida según
   estas decisiones. No toques ningún otro archivo todavía.
+```
+
 **Revisión:** Claude Code propuso dos ediciones y las aprobé una por una.
 Verifiqué que la convención incluyera mis dos correcciones: el servicio
 ordena por `id` (no `paginate`) y los tests de límites usan valores
@@ -322,8 +371,10 @@ literales (1, 20, 100). Además agregó por su cuenta el test de recorrido
 completo, que corresponde al criterio CA-09.
 
 **Commit:** `docs: agrega convención de paginación a CLAUDE.md`
+
 #### Iteración 2 · Esqueleto (skeleton-first)
 **Prompt:**
+```
 Skeleton-first, siguiendo @users/routes.py y @users/service.py como modelo
 y la convención de Paginación de @CLAUDE.md:
 
@@ -336,6 +387,8 @@ y la convención de Paginación de @CLAUDE.md:
    con el cuerpo en raise NotImplementedError.
 
 No implementes la lógica todavía. No toques los tests.
+```
+
 **Revisión:** aprobé 7 ediciones una por una. Lo que verifiqué:
 - Las rutas usan `Query` sin `ge`/`le`, así que los valores fuera de rango
   no darán 422 (CA-03). La IA no cayó en esta trampa porque la convención
@@ -357,6 +410,7 @@ en esta etapa.
 
 #### Iteración 3 · Implementación
 **Prompt:**
+```
 Implementa la lógica del esqueleto según los criterios CA-01 a CA-10 y la
 convención de Paginación de @CLAUDE.md:
 
@@ -370,6 +424,7 @@ convención de Paginación de @CLAUDE.md:
 
 No modifiques los tests todavía. Al terminar corre pytest y ruff check .
 y muéstrame el resultado completo, aunque haya tests fallando.
+```
 
 **Revisión:** aprobé las ediciones una por una. Verifiqué:
 - El inicio del slice es `(page - 1) * size`.
@@ -400,6 +455,7 @@ ruff check .: All checks passed!
 **Commit:** `feat: implementa paginación en GET /users y GET /reports`
 
 ### Decisiones: qué acepté, qué rechacé y por qué
+
 #### Rechazado o corregido
 
 | Propuesta de la IA | Decisión | Por qué |
@@ -409,6 +465,7 @@ ruff check .: All checks passed!
 | Helper de tests `_crear_reportes(client, cantidad)` | **Rechazada.** Renombrado a `_create_reports(client, count)` con `assert` de 201. | Rompía la convención 4 (identificadores en inglés). El `assert` hace que un fallo al crear datos se reporte en su origen. |
 | Versión 1.0.0 en CHANGELOG, `main.py` y `pyproject.toml` | **Rechazada.** Versión 0.2.0. | En 0.x, los cambios incompatibles suben la versión menor; 1.0.0 declararía la API estable. |
 | Enlaces de versión hacia la página de Keep a Changelog | **Rechazada.** Se quitaron. | Deben apuntar a comparaciones del repositorio, y no hay tags de versión. |
+
 #### Aceptado
 
 | Propuesta de la IA | Por qué la acepté |
@@ -419,18 +476,21 @@ ruff check .: All checks passed!
 | Constante `MIN_SIZE` (propuesta por la IA al revisar el esqueleto) | Deja ambos límites del rango con nombre y hace explícita la regla. |
 | Propuestas para las ambigüedades 1-5 y 7-10 | Ver la tabla "Decisiones sobre ambigüedades" de la sección 1. |
 
-#### Pendiente (detectado en la revisión, se atiende después)
+#### Pendientes detectados en la revisión
 
-| Hallazgo | Dónde se atiende |
-|---|---|
-| `paginate` usa `max(page, DEFAULT_PAGE)`: mezcla el valor por defecto con el mínimo. | Refactor del paso 4: introducir `MIN_PAGE`. |
-| `test_list_users_devuelve_los_seed` pasa por casualidad (cuenta claves, no usuarios). | Iteración de tests (sección 3). |
-| La variable `r` en el filtro de `list_reports` es una abreviatura (convención 4). Viene del código original. | Review del paso 5. |
+| Hallazgo | Dónde se atendió | Estado |
+|---|---|---|
+| `paginate` usa `max(page, DEFAULT_PAGE)`: mezcla el valor por defecto con el mínimo. | Refactor de la sección 4: se introdujo `MIN_PAGE`. | **Resuelto** |
+| `test_list_users_devuelve_los_seed` pasa por casualidad (cuenta claves, no usuarios). | Iteración 4 (sección 3). | **Resuelto** |
+| La variable `r` en el filtro de `list_reports` es una abreviatura (convención 4). Viene del código original. | Fix del bug de la sección 4 (`r` → `report`). | **Resuelto** |
 
 ## 3. Tests y cobertura
+
 ### Tests y edge cases
+
 #### Iteración 4 · Corrección de los tests existentes
 **Prompt:**
+```
 Corrige solo estos dos tests para que lean la respuesta paginada
 {items, total, page, size}:
 
@@ -441,6 +501,7 @@ Corrige solo estos dos tests para que lean la respuesta paginada
    len(items) == 1 y que el único item tenga user_id == 1.
 
 No agregues tests nuevos todavía. Al terminar corre pytest y ruff check .
+```
 
 **Cambios:**
 - `test_list_users_devuelve_los_seed`: pasaba por casualidad (contaba las 4
@@ -457,6 +518,7 @@ No agregues tests nuevos todavía. Al terminar corre pytest y ruff check .
 
 #### Iteración 5 · Tests unitarios de `paginate`
 **Prompt:**
+```
 Crea tests/test_pagination.py con tests unitarios de core.pagination.paginate.
 Escríbelos desde los criterios, no desde el código:
 
@@ -482,11 +544,22 @@ Casos:
 8. Lista vacía → items vacío, total 0.
 
 No toques otros archivos. Al terminar corre pytest y ruff check .
+```
 
 **Resultado:** `tests/test_pagination.py` con 9 tests (14 ejecuciones con
 `parametrize`). `30 passed`, `ruff check .` limpio.
 
-(pega aquí la tabla de tests que te dio Claude Code)
+| Test | Criterio | Ejecuciones |
+|---|---|---|
+| `test_paginate_size_menor_a_1_se_recorta_a_1` | CA-03 | 3 (0, -1, -50) |
+| `test_paginate_size_100_se_mantiene` | CA-03 | 1 |
+| `test_paginate_size_mayor_a_100_se_recorta_a_100` | CA-03 | 2 (101, 1000) |
+| `test_paginate_page_menor_a_1_se_recorta_a_1` | CA-03 | 3 (0, -1, -50) |
+| `test_paginate_pagina_2_con_size_10_devuelve_items_11_a_20` | CA-09 | 1 |
+| `test_paginate_ultima_pagina_parcial_devuelve_5_items_y_size_10` | CA-05 | 1 |
+| `test_paginate_pagina_fuera_de_rango_devuelve_items_vacio_y_total_correcto` | CA-08 | 1 |
+| `test_paginate_total_cuenta_todos_los_items_no_solo_los_de_la_pagina` | CA-06 | 1 |
+| `test_paginate_lista_vacia_devuelve_items_vacio_y_total_0` | CA-08 | 1 |
 
 **Revisión:**
 - Los tests usan valores literales (1, 20, 100), no las constantes, como
@@ -505,6 +578,7 @@ No toques otros archivos. Al terminar corre pytest y ruff check .
 
 #### Iteración 6 · Tests de integración de los endpoints
 **Prompt:**
+```
 Agrega tests de paginación para los endpoints, en tests/test_users.py y
 tests/test_reports.py (un archivo por recurso, según CLAUDE.md). Escríbelos
 desde los criterios, no desde el código:
@@ -531,6 +605,8 @@ Solo en /reports:
 8. user_id de un usuario sin reportes → 200, items vacío y total 0 (CA-07).
 
 No toques el código de la aplicación. Al terminar corre pytest y ruff check .
+```
+
 **Resultado:** 18 ejecuciones nuevas entre `test_users.py` y `test_reports.py`.
 `48 passed`, `ruff check .` limpio.
 
@@ -556,16 +632,9 @@ más adelante. La IA lo corrigió a `_create_reports(client, count, user_id=1)`.
 
 ### Reporte de cobertura
 **Comando** (líneas y ramas, solo los paquetes que tocó la feature):
-La cobertura muestra que reports/service.py línea 22 (el return de
-get_report) no está cubierta: GET /reports/{report_id} no tiene test del
-caso feliz, aunque la convención 5 de CLAUDE.md lo pide. Es un hueco
-preexistente, no de la paginación.
-
-Agrega en tests/test_reports.py un solo test:
-test_get_report_existente_devuelve_200, que cree un reporte con
-_create_reports, lo pida por su id y verifique 200, el id y el user_id.
-Mismo estilo: arrange-act-assert y docstring. No toques nada más.
-Corre pytest y ruff check .
+```
+pytest --cov=core --cov=users --cov=reports --cov-branch --cov-report=term-missing
+```
 
 **Primera medición (después de la iteración 6):**
 ```
@@ -575,6 +644,7 @@ reports\service.py         20      1      6      1    92%   22
 users\routes.py            14      0      0      0   100%
 users\service.py           16      0      4      0   100%
 TOTAL                     180      1     20      1    99%
+48 passed
 ```
 
 La línea 22 de `reports/service.py` era el `return` de `get_report`, que no
@@ -585,7 +655,16 @@ feliz, aunque la convención 5 de CLAUDE.md lo pide. Era un hueco preexistente
 #### Iteración 7 · Cierre del hueco preexistente
 **Prompt:**
 ```
-(pega aquí el prompt del test de get_report)
+La cobertura muestra que reports/service.py línea 22 (el return de
+get_report) no está cubierta: GET /reports/{report_id} no tiene test del
+caso feliz, aunque la convención 5 de CLAUDE.md lo pide. Es un hueco
+preexistente, no de la paginación.
+
+Agrega en tests/test_reports.py un solo test:
+test_get_report_existente_devuelve_200, que cree un reporte con
+_create_reports, lo pida por su id y verifique 200, el id y el user_id.
+Mismo estilo: arrange-act-assert y docstring. No toques nada más.
+Corre pytest y ruff check .
 ```
 Se agregó `test_get_report_existente_devuelve_200`. Usa `user_id=2` (no el
 valor por defecto del helper) para demostrar que el dato viene del reporte
@@ -594,10 +673,36 @@ creado.
 **Nota:** Claude Code sugirió verificar con `pytest --cov=.`, pero ese comando
 mide todo el repo y no incluye `--cov-branch`. Mantuve el comando con ramas.
 
-**Medición final:**
+**Medición después de la iteración 7:**
 ```
-(pega aquí la tabla completa de la última medición)
+Name                    Stmts   Miss Branch BrPart  Cover   Missing
+-------------------------------------------------------------------
+core\__init__.py            0      0      0      0   100%
+core\errors.py              9      0      0      0   100%
+core\pagination.py         14      0      0      0   100%
+reports\__init__.py         0      0      0      0   100%
+reports\export.py          27      0      6      0   100%
+reports\repository.py      22      0      0      0   100%
+reports\routes.py          22      0      2      0   100%
+reports\schemas.py          7      0      0      0   100%
+reports\service.py         20      0      6      0   100%
+users\__init__.py           0      0      0      0   100%
+users\repository.py        23      0      2      0   100%
+users\routes.py            14      0      0      0   100%
+users\schemas.py            6      0      0      0   100%
+users\service.py           16      0      4      0   100%
+-------------------------------------------------------------------
+TOTAL                     180      0     20      0   100%
 49 passed
+```
+
+**Medición final de la entrega** (después del refactor y del review; 53
+tests, y `core/pagination.py` pasa a 15 sentencias por la constante
+`MIN_PAGE`):
+```
+core\pagination.py         15      0      0      0   100%
+TOTAL                     181      0     20      0   100%
+53 passed
 ```
 
 **Observación:** `core/pagination.py` marca 0 ramas porque `min()` y `max()`
@@ -606,7 +711,9 @@ no generan ramas para coverage, aunque internamente deciden el recorte. Un
 complementa con mutaciones a mano.
 
 **Commit:** `test: caso feliz de GET /reports/{report_id} (hueco preexistente)`
+
 ### Mutaciones a mano
+
 #### Mutación 1 · Límite máximo de size
 **Cambio:** `core/pagination.py`: `MAX_SIZE = 100` → `MAX_SIZE = 1000`.
 
@@ -633,6 +740,7 @@ FAILED tests/test_users.py::test_list_users_size_mayor_a_100_devuelve_200_con_si
 (error de desplazamiento: la página 1 empieza donde debería empezar la 2).
 
 **Resultado:** **detectada**. 15 tests fallaron:
+```
 FAILED tests/test_pagination.py::test_paginate_size_menor_a_1_se_recorta_a_1[0] - assert [2] == [1]
 FAILED tests/test_pagination.py::test_paginate_size_menor_a_1_se_recorta_a_1[-1] - assert [2] == [1]
 FAILED tests/test_pagination.py::test_paginate_size_menor_a_1_se_recorta_a_1[-50] - assert [2] == [1]
@@ -648,6 +756,7 @@ FAILED tests/test_reports.py::test_list_reports_filtra_por_user_id - assert 0 ==
 FAILED tests/test_reports.py::test_list_reports_recorrido_completo_devuelve_200_sin_repetir_ni_saltar - assert [3, 4, 5] == [1, 2, 3, 4, 5]
 FAILED tests/test_users.py::test_list_users_devuelve_los_seed - assert 0 == 4
 FAILED tests/test_users.py::test_list_users_recorrido_completo_devuelve_200_sin_repetir_ni_saltar - assert [3, 4] == [1, 2, 3, 4]
+```
 
 **Análisis:**
 - `test_list_users_devuelve_los_seed` falló (`0 == 4`). En su versión
@@ -701,7 +810,9 @@ completos y los tests unitarios de `paginate`.
 **Nota:** la IA ofreció aplicar la mutación ella misma; la apliqué a mano.
 
 **Commit:** `test: tests de size=0 verifican el item devuelto, no solo la cantidad`
+
 ## 4. Debugging y refactorización
+
 ### Bug
 **Origen del bug:** durante el desarrollo no apareció ningún bug real (el
 único test que falló tras la implementación era un fallo previsto por el
@@ -728,6 +839,7 @@ Patrón: en los tres casos `total` es mayor al esperado, y solo fallan los
 tests que combinan el filtro con la paginación.
 
 **Prompt (hipótesis antes que fix):**
+```
 Tengo 3 tests fallando en tests/test_reports.py:
 
 FAILED test_list_reports_filtra_por_user_id - assert 2 == 1
@@ -735,7 +847,28 @@ FAILED test_list_reports_user_id_con_paginacion_devuelve_200_con_total_del_filtr
 FAILED test_list_reports_user_id_sin_reportes_devuelve_200_con_items_vacio - assert 3 == 0
 
 Detalle de uno de ellos:
-(pega aquí el bloque completo del fallo)
+_____________________ test_list_reports_user_id_con_paginacion_devuelve_200_con_total_del_filtro ______________________
+
+client = <starlette.testclient.TestClient object at 0x000002B539CAA7A0>
+
+    def test_list_reports_user_id_con_paginacion_devuelve_200_con_total_del_filtro(
+        client: TestClient,
+    ) -> None:
+        """CA-06, CA-07: user_id se combina con la paginación y total cuenta todo el filtro."""
+        # Arrange
+        _create_reports(client, 5, user_id=1)
+        _create_reports(client, 2, user_id=2)
+
+        # Act
+        response = client.get("/reports", params={"user_id": 1, "size": 2})
+
+        # Assert
+        assert response.status_code == 200
+        body = response.json()
+>       assert body["total"] == 5
+E       assert 7 == 5
+
+tests\test_reports.py:180: AssertionError
 
 Comportamiento esperado (CA-06 y CA-07): total cuenta solo los reportes
 que cumplen el filtro por user_id, no todos.
@@ -745,6 +878,7 @@ Antes de proponer cualquier fix:
 2. Para cada una, dime cómo confirmarla o descartarla.
 Diagnostica a partir del trace y del código actual, sin revisar el
 historial de git. No modifiques ningún archivo todavía.
+```
 
 **Hipótesis de la IA:**
 1. El filtro se aplica después de `paginate`, así que `total` cuenta todos
@@ -777,6 +911,7 @@ Para un diagnóstico más limpio habría convenido usar una sesión nueva o
 `/clear` antes de presentar el trace.
 
 **Commit:** `fix: list_reports filtra antes de paginar (ejercicio de debugging)`
+
 ### Refactor
 **Code smell:** detecté al revisar el diff de la implementación (iteración 3)
 que `paginate` usaba `max(page, DEFAULT_PAGE)`. Mezclaba dos conceptos: el
@@ -784,6 +919,7 @@ valor por defecto de `page` y el mínimo permitido. Hoy ambos valen 1, pero si
 alguien cambiara `DEFAULT_PAGE`, el mínimo cambiaría sin querer.
 
 **Prompt:**
+```
 Refactor (cambio de forma, no de comportamiento): en core/pagination.py,
 paginate usa max(page, DEFAULT_PAGE), que mezcla el valor por defecto con
 el mínimo permitido. Hoy ambos valen 1, pero son conceptos distintos.
@@ -795,6 +931,7 @@ el mínimo permitido. Hoy ambos valen 1, pero son conceptos distintos.
    y no está documentada.
 
 No toques los tests ni ningún otro archivo. Corre pytest y ruff check .
+```
 
 **Cambios:**
 - `core/pagination.py`: nueva constante `MIN_PAGE = 1`; `paginate` recorta
@@ -815,13 +952,16 @@ no las constantes, cualquier cambio accidental de comportamiento durante el
 refactor los habría hecho fallar.
 
 **Commit:** `refactor: separa MIN_PAGE de DEFAULT_PAGE en paginate`
+
 ## 5. Documentación y review
+
 ### Hallazgos del review
 **Preparación:** usé `/clear` antes del review para que Claude Code revisara
 la rama sin el contexto de haber escrito el código (lección del ejercicio
 de debugging).
 
 **Prompt:**
+```
 Revisa mi rama como si fuera un pull request ajeno. Compara contra la
 rama base con: git diff solucion-clase4...reto-m2
 Ignora EVIDENCIA.md: no es código.
@@ -840,6 +980,7 @@ Revisa por categorías:
 Para cada hallazgo indica: archivo y línea, severidad (alta, media, baja),
 descripción y sugerencia. Si una categoría no tiene hallazgos, dilo
 explícitamente. No modifiques ningún archivo.
+```
 
 **Resultado:** sin hallazgos de severidad alta. Seguridad y manejo de
 errores, sin hallazgos. 13 hallazgos de severidad media o baja.
@@ -873,13 +1014,16 @@ justificación en lugar de aceptar automáticamente la sugerencia.
 **Correcciones:** `53 passed` (4 tests nuevos), `ruff check .` limpio.
 
 **Commit:** `test: recorte de page por endpoint y helper antes de su uso (review)`
+
 ### Docstrings, README y CHANGELOG
+
 #### Docstrings
 `paginate`, `Page` y el módulo `core/pagination.py` tienen docstrings desde
 el esqueleto. En esta iteración se agregaron a los dos servicios y las dos
 rutas.
 
 **Prompt:**
+```
 Agrega docstrings a las funciones clave de la feature que todavía no los
 tienen. No cambies ningún comportamiento:
 
@@ -898,6 +1042,7 @@ CLAUDE.md, no solo describiendo el código línea por línea:
 
 En español, mismo estilo que el docstring de paginate. Corre pytest y
 .venv\Scripts\python.exe -m ruff check .
+```
 
 **Revisión (contra los criterios, no contra el código):**
 - `list_reports` documenta que filtra y ordena **antes** de paginar y que
@@ -914,29 +1059,13 @@ En español, mismo estilo que el docstring de paginate. Corre pytest y
 **Resultado:** `53 passed`, `ruff check .` limpio.
 
 **Commit:** `docs: docstrings de servicios y rutas paginadas`
+
 #### README
 El README de la rama base describía la tarea de la Clase 1. Se reescribió
 para alguien nuevo en el proyecto.
 
 **Prompt inicial:**
 ```
-(pega aquí el prompt del README)
-```
-
-**Primera versión:** completa y convincente, pero **no verificada**. La IA
-reconoció que no había ejecutado ningún comando y que algunos valores eran
-inventados.
-
-**Verificación contra la API real** (servidor con `uvicorn main:app --reload`):
-
-| Ejemplo del README | Resultado real | Problema |
-|---|---|---|
-| `GET /users?page=1&size=2` | Usuarios y totales correctos | `created_at` no es fijo: es la hora de arranque |
-| `GET /users?size=500` | `size: 100`, `total: 4` | Ninguno |
-| `GET /reports?user_id=1...` | `items: []`, `total: 0` | El README mostraba 5 reportes que no existen al arrancar |
-| `GET /users?page=abc` | `422 Unprocessable Content` | El README decía `Unprocessable Entity` |
-
-**Prompt de corrección:**
 El README.md actual está desactualizado: describe la tarea de la Clase 1.
 Reescríbelo para alguien nuevo en el proyecto. Léelo primero, junto con
 CLAUDE.md, y conserva lo que siga siendo válido.
@@ -966,6 +1095,44 @@ Secciones:
    extraer page/size a una dependencia compartida.
 
 Los criterios están en EVIDENCIA.md, sección 1. No toques otros archivos.
+```
+
+**Primera versión:** completa y convincente, pero **no verificada**. La IA
+reconoció que no había ejecutado ningún comando y que algunos valores eran
+inventados.
+
+**Verificación contra la API real** (servidor con `uvicorn main:app --reload`):
+
+| Ejemplo del README | Resultado real | Problema |
+|---|---|---|
+| `GET /users?page=1&size=2` | Usuarios y totales correctos | `created_at` no es fijo: es la hora de arranque |
+| `GET /users?size=500` | `size: 100`, `total: 4` | Ninguno |
+| `GET /reports?user_id=1...` | `items: []`, `total: 0` | El README mostraba 5 reportes que no existen al arrancar |
+| `GET /users?page=abc` | `422 Unprocessable Content` | El README decía `Unprocessable Entity` |
+
+**Prompt de corrección:**
+```
+Verifiqué los ejemplos del README contra la API real. Corrige solo
+README.md:
+
+1. created_at: no es un valor fijo, es la hora en que arrancó el
+   servidor. Usa un valor de ejemplo y aclara que varía.
+2. Ejemplo de /reports?user_id=1: al arrancar no hay reportes (la API
+   respondió items: [] y total: 0). Agrega antes un ejemplo de POST
+   /reports con curl que funcione en cmd de Windows (comillas dobles
+   escapadas en el JSON) y aclara que el resultado depende de los
+   reportes creados.
+3. El 422 real responde "HTTP/1.1 422 Unprocessable Content", no
+   "Unprocessable Entity". Agrega también el cuerpo real:
+   {"detail":[{"type":"int_parsing","loc":["query","page"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"abc"}]}
+4. Agrega una nota: en PowerShell, curl es un alias de Invoke-WebRequest;
+   ahí hay que usar curl.exe.
+5. En la tabla de endpoints dices que POST /reports da 422 si el cuerpo
+   supera 500 caracteres. Dime en qué archivo y línea del código está esa
+   regla. Si no la encuentras, quítala.
+
+No toques otros archivos.
+```
 
 **Correcciones:** nota sobre `created_at`; ejemplo de `POST /reports` para
 `cmd` antes de listar; texto y cuerpo reales del 422; nota de `curl.exe` en
@@ -994,8 +1161,10 @@ haya probado. Ejecutar cada ejemplo encontró tres errores en un README que
 parecía terminado.
 
 **Commit:** `docs: README actualizado con paginación, ejemplos verificados y criterios`
+
 #### CHANGELOG
 **Prompt:**
+```
 Crea CHANGELOG.md en la raíz siguiendo el formato de Keep a Changelog
 (https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
@@ -1018,6 +1187,7 @@ Fecha: 2026-10-19. Incluye, solo con lo que realmente está en la rama:
 No incluyas el bug de "filtrar después de paginar": se introdujo a
 propósito como ejercicio y nunca llegó a un commit. Agrega al inicio una
 sección [Sin publicar] vacía, como pide el formato.
+```
 
 **Decisión de versión:** el proyecto estaba en **0.1.0**. Mi prompt pedía
 "la siguiente versión mayor", y la IA propuso 1.0.0. Lo **rechacé**: en
@@ -1045,22 +1215,34 @@ incluyó el bug de "filtrar después de paginar", porque se introdujo como
 ejercicio y nunca llegó a un commit.
 
 **Commit:** `docs: CHANGELOG 0.2.0 y versión actualizada`
-## Reflexión final
-
-Fue un reto interesante donde apredí varias cosas.
-- El contexto es muy importante para evitar errores al generar el código: como la convención de paginación ya estaba en CLAUDE.md, la IA no usó ge/le, 
-  que habrían devuelto 422 en lugar de recortar.
-- La IA recuerda su propio código por eso es importante usar /clear antes de diagnosticar
-- Que todos los test estén en verde, no significa que este todo OK, el test que lo desmostró: el de los usuarios semilla, que contaba las 4 claves del objeto.
-- Un rechazo importante fue el tema que la función genérica de paginación ordenara por id, ya que no se debe asumir que cualquier tipo tiene id
-- Las mutaciones ayudan a corrgir fallos en los test, que no se detectan inicialmente, se encontró el fallo de los tests de size=0 verificaban cuántos items, no cuáles.
-- En el versionado: la IA aplicó literalmente lo que le pedí (1.0.0) y tuve que corregir con criterio (0.2.0)
-
-En general este tipo de ejercicios me ayudarán con códigos reales en mi trabajo, para poder hacer refactorizaciones mas eficientes y fiables, 
-sobre todo que esté documentado todo el proceso, la codificación se implementa más rápido con la IA, se dedica mas tiempo a revisar, verificar y documentar.
 
 **Nota sobre el historial:** el commit `556d2a1` contiene el CHANGELOG y la
 actualización de versión (`CHANGELOG.md`, `main.py`, `pyproject.toml`), pero
 por error se registró con el mensaje "docs: evidencia del CHANGELOG". El
 contenido es correcto; no reescribí el historial para no arriesgar los
 commits ya hechos.
+
+## Reflexión final
+
+Fue un reto interesante donde aprendí varias cosas:
+
+- El contexto es muy importante para evitar errores al generar el código:
+  como la convención de paginación ya estaba en CLAUDE.md, la IA no usó
+  `ge`/`le`, que habrían devuelto 422 en lugar de recortar.
+- La IA recuerda su propio código; por eso es importante usar `/clear` antes
+  de diagnosticar.
+- Que todos los tests estén en verde no significa que esté todo bien. El test
+  que lo demostró fue el de los usuarios semilla, que contaba las 4 claves
+  del objeto.
+- Un rechazo importante fue que la función genérica de paginación ordenara
+  por `id`, ya que no se debe asumir que cualquier tipo tiene `id`.
+- Las mutaciones ayudan a corregir fallos en los tests que no se detectan
+  inicialmente: encontraron que los tests de `size=0` verificaban cuántos
+  items, no cuáles.
+- En el versionado, la IA aplicó literalmente lo que le pedí (1.0.0) y tuve
+  que corregir con criterio (0.2.0).
+
+En general, este tipo de ejercicios me ayudará con código real en mi trabajo,
+para hacer refactorizaciones más eficientes y fiables, sobre todo porque queda
+documentado todo el proceso. La codificación se implementa más rápido con la
+IA, y se dedica más tiempo a revisar, verificar y documentar.
