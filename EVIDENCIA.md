@@ -872,5 +872,44 @@ justificación en lugar de aceptar automáticamente la sugerencia.
 
 **Commit:** `test: recorte de page por endpoint y helper antes de su uso (review)`
 ### Docstrings, README y CHANGELOG
+#### Docstrings
+`paginate`, `Page` y el módulo `core/pagination.py` tienen docstrings desde
+el esqueleto. En esta iteración se agregaron a los dos servicios y las dos
+rutas.
 
+**Prompt:**
+Agrega docstrings a las funciones clave de la feature que todavía no los
+tienen. No cambies ningún comportamiento:
+
+1. users/service.py: list_users
+2. reports/service.py: list_reports
+3. users/routes.py: la ruta GET /users
+4. reports/routes.py: la ruta GET /reports
+
+Escríbelos según lo que el código DEBE hacer según los criterios de
+CLAUDE.md, no solo describiendo el código línea por línea:
+- Servicios: qué filtran, que ordenan por id y que delegan el recorte en
+  paginate.
+- Rutas: parámetros (page, size y user_id en reports), valores por
+  defecto, recorte sin error, 422 para valores no numéricos y forma de la
+  respuesta. Recuerda que aparecen en /docs.
+
+En español, mismo estilo que el docstring de paginate. Corre pytest y
+.venv\Scripts\python.exe -m ruff check .
+
+**Revisión (contra los criterios, no contra el código):**
+- `list_reports` documenta que filtra y ordena **antes** de paginar y que
+  `total` cuenta los reportes filtrados. Deja escrito el orden cuya
+  inversión fue el bug de la sección 4.
+- Los docstrings de las **rutas** aparecen en `/docs`, así que usan los
+  valores literales (1, 20, 1..100) para quien consume la API. Los de los
+  **servicios** usan las constantes (`MIN_PAGE`, `MAX_SIZE`) para quien
+  mantiene el código.
+- Ningún docstring contradice un criterio. Detalle menor: el de
+  `GET /reports` no menciona que un `user_id` sin reportes da `total: 0`;
+  se documenta en el README.
+
+**Resultado:** `53 passed`, `ruff check .` limpio.
+
+**Commit:** `docs: docstrings de servicios y rutas paginadas`
 ## Reflexión final
