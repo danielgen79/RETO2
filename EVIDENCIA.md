@@ -776,10 +776,43 @@ Para un diagnóstico más limpio habría convenido usar una sesión nueva o
 
 **Commit:** `fix: list_reports filtra antes de paginar (ejercicio de debugging)`
 ### Refactor
+**Code smell:** detecté al revisar el diff de la implementación (iteración 3)
+que `paginate` usaba `max(page, DEFAULT_PAGE)`. Mezclaba dos conceptos: el
+valor por defecto de `page` y el mínimo permitido. Hoy ambos valen 1, pero si
+alguien cambiara `DEFAULT_PAGE`, el mínimo cambiaría sin querer.
 
-**Code smell:**
-hay un code smell en la primera línea: max(page, DEFAULT_PAGE) usa el valor por defecto como mínimo. Hoy ambos valen 1 y funciona, pero son conceptos distintos. Si mañana alguien cambia DEFAULT_PAGE, el mínimo cambiaría sin querer. Lo correcto sería una constante MIN_PAGE = 1, igual que hicieron con MIN_SIZE
+**Prompt:**
+Refactor (cambio de forma, no de comportamiento): en core/pagination.py,
+paginate usa max(page, DEFAULT_PAGE), que mezcla el valor por defecto con
+el mínimo permitido. Hoy ambos valen 1, pero son conceptos distintos.
 
+1. Agrega la constante MIN_PAGE = 1 junto a las demás y úsala en paginate.
+2. Ajusta el docstring de paginate para que mencione MIN_PAGE.
+3. En CLAUDE.md, la convención de Paginación lista DEFAULT_PAGE,
+   DEFAULT_SIZE y MAX_SIZE: agrega MIN_PAGE y MIN_SIZE, que también existe
+   y no está documentada.
+
+No toques los tests ni ningún otro archivo. Corre pytest y ruff check .
+
+**Cambios:**
+- `core/pagination.py`: nueva constante `MIN_PAGE = 1`; `paginate` recorta
+  con `max(page, MIN_PAGE)`; el docstring la menciona.
+- `CLAUDE.md`: la convención ahora lista las cinco constantes (`MIN_SIZE`
+  existía desde la implementación pero no estaba documentada: otro desfase
+  entre código y documentación). La IA agregó por su cuenta una regla
+  explícita: el recorte usa `MIN_*`/`MAX_SIZE`, nunca los `DEFAULT_*`. La
+  acepté porque convierte el code smell en una convención escrita.
+
+**Tests como red de seguridad:**
+```
+Antes del refactor:  pytest -q → 49 passed
+Después del refactor: pytest -q → 49 passed
+```
+Los tests no se modificaron. Como verifican valores literales (1, 20, 100) y
+no las constantes, cualquier cambio accidental de comportamiento durante el
+refactor los habría hecho fallar.
+
+**Commit:** `refactor: separa MIN_PAGE de DEFAULT_PAGE en paginate`
 ## 5. Documentación y review
 ### Hallazgos del review
 ### Docstrings, README y CHANGELOG
