@@ -427,6 +427,31 @@ ruff check .: All checks passed!
 
 ## 3. Tests y cobertura
 ### Tests y edge cases
+#### Iteración 4 · Corrección de los tests existentes
+**Prompt:**
+Corrige solo estos dos tests para que lean la respuesta paginada
+{items, total, page, size}:
+
+1. test_list_users_devuelve_los_seed: hoy pasa por casualidad porque
+   len(response.json()) == 4 cuenta las claves del objeto. Debe verificar
+   total == 4 y len(items) == 4.
+2. test_list_reports_filtra_por_user_id: debe verificar total == 1,
+   len(items) == 1 y que el único item tenga user_id == 1.
+
+No agregues tests nuevos todavía. Al terminar corre pytest y ruff check .
+
+**Cambios:**
+- `test_list_users_devuelve_los_seed`: pasaba por casualidad (contaba las 4
+  claves del objeto). Ahora verifica `total == 4` y `len(items) == 4`, así que
+  falla si la respuesta vuelve a ser lista o si `total` está mal calculado.
+- `test_list_reports_filtra_por_user_id`: ahora verifica `total == 1`,
+  `len(items) == 1` y que el item sea del usuario 1 (CA-06 y CA-07).
+- La IA renombró la variable `cuerpos` a `body`, alineándola con la
+  convención 4 (identificadores en inglés).
+
+**Resultado:** `16 passed`, `ruff check .` limpio.
+
+**Commit:** `test: adapta tests de listas a la respuesta paginada`
 ### Reporte de cobertura
 ### Mutaciones a mano
 
