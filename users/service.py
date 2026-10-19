@@ -18,6 +18,16 @@ def get_user(user_id: int) -> User:
 
 
 def list_users(page: int, size: int) -> Page[User]:
+    """Devuelve la página `page` de usuarios, ordenados por `id` ascendente.
+
+    Args:
+        page: número de página pedido. `paginate` lo recorta a `MIN_PAGE` si es menor.
+        size: tamaño de página pedido. `paginate` lo recorta a `MIN_SIZE`..`MAX_SIZE`.
+
+    Returns:
+        Un `Page[User]` con `total` sobre todos los usuarios. Esta capa ordena por `id`;
+        el recorte de `page` y `size` y el corte los delega en `paginate`.
+    """
     users = sorted(repository.list_all(), key=lambda user: user.id)
     return paginate(users, page, size)
 

@@ -23,6 +23,19 @@ def get_report(report_id: int) -> Report:
 
 
 def list_reports(page: int, size: int, user_id: int | None = None) -> Page[Report]:
+    """Devuelve la página `page` de reportes, filtrados y ordenados por `id` ascendente.
+
+    Args:
+        page: número de página pedido. `paginate` lo recorta a `MIN_PAGE` si es menor.
+        size: tamaño de página pedido. `paginate` lo recorta a `MIN_SIZE`..`MAX_SIZE`.
+        user_id: si se indica, solo se consideran los reportes de ese usuario.
+
+    Returns:
+        Un `Page[Report]` con `total` calculado sobre los reportes ya filtrados. Esta
+        capa filtra y ordena por `id` antes de paginar; el recorte de `page` y `size`
+        y el corte los delega en `paginate`. Un `user_id` sin reportes da `items` vacío
+        y `total` 0.
+    """
     reports = repository.list_all()
     if user_id is not None:
         reports = [report for report in reports if report.user_id == user_id]
