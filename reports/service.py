@@ -25,6 +25,6 @@ def get_report(report_id: int) -> Report:
 def list_reports(page: int, size: int, user_id: int | None = None) -> Page[Report]:
     reports = repository.list_all()
     if user_id is not None:
-        reports = [r for r in reports if r.user_id == user_id]
+        reports = [report for report in reports if report.user_id == user_id]
     reports = sorted(reports, key=lambda report: report.id)
     return paginate(reports, page, size)
