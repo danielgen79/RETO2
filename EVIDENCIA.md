@@ -400,6 +400,30 @@ ruff check .: All checks passed!
 **Commit:** `feat: implementa paginación en GET /users y GET /reports`
 
 ### Decisiones: qué acepté, qué rechacé y por qué
+#### Rechazado o corregido
+
+| Propuesta de la IA | Decisión | Por qué |
+|---|---|---|
+| `paginate` ordena por `id` | **Rechazada.** El servicio filtra y ordena; `paginate` solo recorta y corta. | Una función genérica `Page[T]` no debe asumir que todo `T` tiene `id`. Acoplaba la lógica compartida a un detalle de los recursos actuales. |
+| "Los valores límite no se repiten en tests" (convención propuesta para CLAUDE.md) | **Rechazada.** Los tests de límites verifican los valores literales (1, 20, 100). | Si los tests importan `MAX_SIZE`, una mutación de 100 a 1000 cambia también el valor esperado y el test sigue en verde. La regla habría hecho invisibles las mutaciones. |
+
+#### Aceptado
+
+| Propuesta de la IA | Por qué la acepté |
+|---|---|
+| Modelo genérico `Page[T]` en `core/pagination.py` | Un solo modelo para ambos recursos, compatible con `response_model=` (convención 1 del repo). |
+| `Query` sin `ge`/`le` en las rutas | Con `ge`/`le`, `size=500` daría 422 en lugar de recortarse a 100 (CA-03). |
+| 422 nativo de FastAPI para valores no numéricos | Es el comportamiento estándar y no requiere código propio. |
+| Constante `MIN_SIZE` (propuesta por la IA al revisar el esqueleto) | Deja ambos límites del rango con nombre y hace explícita la regla. |
+| Propuestas para las ambigüedades 1-5 y 7-10 | Ver la tabla "Decisiones sobre ambigüedades" de la sección 1. |
+
+#### Pendiente (detectado en la revisión, se atiende después)
+
+| Hallazgo | Dónde se atiende |
+|---|---|
+| `paginate` usa `max(page, DEFAULT_PAGE)`: mezcla el valor por defecto con el mínimo. | Refactor del paso 4: introducir `MIN_PAGE`. |
+| `test_list_users_devuelve_los_seed` pasa por casualidad (cuenta claves, no usuarios). | Iteración de tests (sección 3). |
+| La variable `r` en el filtro de `list_reports` es una abreviatura (convención 4). Viene del código original. | Review del paso 5. |
 
 ## 3. Tests y cobertura
 ### Tests y edge cases
