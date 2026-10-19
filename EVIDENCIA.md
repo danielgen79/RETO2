@@ -452,6 +452,55 @@ No agregues tests nuevos todavía. Al terminar corre pytest y ruff check .
 **Resultado:** `16 passed`, `ruff check .` limpio.
 
 **Commit:** `test: adapta tests de listas a la respuesta paginada`
+
+#### Iteración 5 · Tests unitarios de `paginate`
+**Prompt:**
+Crea tests/test_pagination.py con tests unitarios de core.pagination.paginate.
+Escríbelos desde los criterios, no desde el código:
+
+- Estructura arrange-act-assert, con comentarios # Arrange, # Act, # Assert.
+- Cada test con un docstring que cite su criterio, por ejemplo:
+  """CA-03: size mayor a 100 se recorta a 100."""
+- Nombres en español, siguiendo el estilo del repo:
+  test_paginate_<condicion>_<resultado>.
+- Los valores esperados van como literales (1, 20, 100), NO importes
+  DEFAULT_SIZE, MIN_SIZE ni MAX_SIZE en los tests.
+- Usa una lista simple de enteros como items; paginate es genérica.
+
+Casos:
+1. size=0 y size negativo → size 1 (CA-03).
+2. size=100 se mantiene; size=101 y size=1000 → 100 (CA-03).
+3. page=0 y page negativo → page 1 (CA-03).
+4. Página 2 con size 10 sobre 25 items devuelve los items 11 a 20 (detecta
+   errores en el cálculo del inicio del slice).
+5. Última página parcial: página 3 con size 10 sobre 25 items devuelve 5 items
+   y size sigue siendo 10 (CA-05).
+6. Página fuera de rango → items vacío y total correcto (CA-08).
+7. total cuenta todos los items, no solo los de la página (CA-06).
+8. Lista vacía → items vacío, total 0.
+
+No toques otros archivos. Al terminar corre pytest y ruff check .
+
+**Resultado:** `tests/test_pagination.py` con 9 tests (14 ejecuciones con
+`parametrize`). `30 passed`, `ruff check .` limpio.
+
+(pega aquí la tabla de tests que te dio Claude Code)
+
+**Revisión:**
+- Los tests usan valores literales (1, 20, 100), no las constantes, como
+  exige la convención corregida.
+- El test de la página 2 verifica los valores exactos (11 a 20), no solo
+  cuántos items hay, para detectar un error en el cálculo del inicio del slice.
+- Confirmé las dos asignaciones de criterio que propuso la IA: el slice de
+  la página 2 → CA-09 y la lista vacía → CA-08.
+- CA-02 (valores por defecto) no se prueba aquí, porque los valores por
+  defecto viven en las rutas, no en `paginate`. Se cubre en los tests de
+  endpoints.
+- La IA ofreció hacer las mutaciones ella misma; lo rechacé porque el reto
+  pide mutaciones a mano.
+
+**Commit:** `test: tests unitarios de paginate`
+
 ### Reporte de cobertura
 ### Mutaciones a mano
 
