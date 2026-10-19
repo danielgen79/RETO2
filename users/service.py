@@ -5,6 +5,7 @@ Las rutas no acceden al repositorio directamente: pasan por aquí. Esta capa es 
 dominio (usando `core.errors`).
 """
 from core import errors
+from core.pagination import Page
 from users import repository
 from users.schemas import User, UserCreate
 
@@ -16,8 +17,8 @@ def get_user(user_id: int) -> User:
     return user
 
 
-def list_users() -> list[User]:
-    return repository.list_all()
+def list_users(page: int, size: int) -> Page[User]:
+    raise NotImplementedError
 
 
 def create_user(data: UserCreate) -> User:

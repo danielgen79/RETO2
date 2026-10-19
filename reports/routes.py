@@ -3,6 +3,7 @@ from fastapi import APIRouter, Header, Query, status
 from pydantic import BaseModel
 
 from core import errors
+from core.pagination import DEFAULT_PAGE, DEFAULT_SIZE, Page
 from reports import export, service
 from reports.schemas import Report, ReportCreate
 
@@ -13,9 +14,13 @@ class ExportResult(BaseModel):
     filename: str
 
 
-@router.get("", response_model=list[Report])
-def list_reports(user_id: int | None = Query(default=None)) -> list[Report]:
-    return service.list_reports(user_id=user_id)
+@router.get("", response_model=Page[Report])
+def list_reports(
+    user_id: int | None = Query(default=None),
+    page: int = Query(default=DEFAULT_PAGE),
+    size: int = Query(default=DEFAULT_SIZE),
+) -> Page[Report]:
+    return service.list_reports(user_id=user_id, page=page, size=size)
 
 
 @router.get("/export", response_model=ExportResult, summary="Exporta los reportes a un archivo")
