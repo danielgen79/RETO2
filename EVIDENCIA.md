@@ -1047,3 +1047,14 @@ ejercicio y nunca llegó a un commit.
 **Commit:** `docs: CHANGELOG 0.2.0 y versión actualizada`
 ## Reflexión final
 
+Fue un reto interesante donde apredí varias cosas.
+- El contexto es muy importante para evitar errores al generar el código: como la convención de paginación ya estaba en CLAUDE.md, la IA no usó ge/le, 
+  que habrían devuelto 422 en lugar de recortar.
+- La IA recuerda su propio código por eso es importante usar /clear antes de diagnosticar
+- Que todos los test estén en verde, no significa que este todo OK, el test que lo desmostró: el de los usuarios semilla, que contaba las 4 claves del objeto.
+- Un rechazo importante fue el tema que la función genérica de paginación ordenara por id, ya que no se debe asumir que cualquier tipo tiene id
+- Las mutaciones ayudan a corrgir fallos en los test, que no se detectan inicialmente, se encontró el fallo de los tests de size=0 verificaban cuántos items, no cuáles.
+- En el versionado: la IA aplicó literalmente lo que le pedí (1.0.0) y tuve que corregir con criterio (0.2.0)
+
+En general este tipo de ejercicios me ayudarán con códigos reales en mi trabajo, para poder hacer refactorizaciones mas eficientes y fiables, 
+sobre todo que esté documentado todo el proceso, la codificación se implementa más rápido con la IA, se dedica mas tiempo a revisar, verificar y documentar.
