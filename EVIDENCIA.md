@@ -322,6 +322,38 @@ literales (1, 20, 100). Además agregó por su cuenta el test de recorrido
 completo, que corresponde al criterio CA-09.
 
 **Commit:** `docs: agrega convención de paginación a CLAUDE.md`
+#### Iteración 2 · Esqueleto (skeleton-first)
+**Prompt:**
+Skeleton-first, siguiendo @users/routes.py y @users/service.py como modelo
+y la convención de Paginación de @CLAUDE.md:
+
+1. Crea core/pagination.py con el modelo Page[T], las constantes
+   DEFAULT_PAGE, DEFAULT_SIZE y MAX_SIZE, y la firma de paginate con su
+   docstring, pero con el cuerpo en raise NotImplementedError.
+2. Agrega page y size a GET /users y GET /reports, con
+   response_model=Page[...], delegando en el servicio.
+3. Ajusta las firmas de list_users y list_reports para recibir page y size,
+   con el cuerpo en raise NotImplementedError.
+
+No implementes la lógica todavía. No toques los tests.
+**Revisión:** aprobé 7 ediciones una por una. Lo que verifiqué:
+- Las rutas usan `Query` sin `ge`/`le`, así que los valores fuera de rango
+  no darán 422 (CA-03). La IA no cayó en esta trampa porque la convención
+  ya estaba en CLAUDE.md: preparar el contexto antes de generar funcionó.
+- `GET /reports` conserva `user_id` y la ruta sigue antes de `/export` y de
+  `/{report_id}`.
+- El esqueleto borró la lógica del filtro por `user_id`. Claude Code lo
+  señaló en su resumen; queda como punto a verificar en la implementación
+  para no romper CA-07 ni el comportamiento existente.
+
+**Observación:** el mínimo de `size` (1) no tiene constante propia; solo el
+máximo. La IA lo detectó y propuso agregar `MIN_SIZE`.
+
+**Resultado:** la app importa sin errores y `ruff check .` pasa. `pytest`
+no se ejecutó: las funciones lanzan `NotImplementedError`, como se espera
+en esta etapa.
+
+**Commit:** `feat: esqueleto de paginación en GET /users y GET /reports`
 ### Decisiones: qué acepté, qué rechacé y por qué
 
 ## 3. Tests y cobertura
