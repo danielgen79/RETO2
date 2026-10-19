@@ -553,6 +553,57 @@ más adelante. La IA lo corrigió a `_create_reports(client, count, user_id=1)`.
 **Commit:** `test: tests de paginación en GET /users y GET /reports`
 
 ### Reporte de cobertura
+**Comando** (líneas y ramas, solo los paquetes que tocó la feature):
+La cobertura muestra que reports/service.py línea 22 (el return de
+get_report) no está cubierta: GET /reports/{report_id} no tiene test del
+caso feliz, aunque la convención 5 de CLAUDE.md lo pide. Es un hueco
+preexistente, no de la paginación.
+
+Agrega en tests/test_reports.py un solo test:
+test_get_report_existente_devuelve_200, que cree un reporte con
+_create_reports, lo pida por su id y verifique 200, el id y el user_id.
+Mismo estilo: arrange-act-assert y docstring. No toques nada más.
+Corre pytest y ruff check .
+
+**Primera medición (después de la iteración 6):**
+```
+core\pagination.py         14      0      0      0   100%
+reports\routes.py          22      0      2      0   100%
+reports\service.py         20      1      6      1    92%   22
+users\routes.py            14      0      0      0   100%
+users\service.py           16      0      4      0   100%
+TOTAL                     180      1     20      1    99%
+```
+
+La línea 22 de `reports/service.py` era el `return` de `get_report`, que no
+forma parte de la feature: `GET /reports/{report_id}` no tenía test del caso
+feliz, aunque la convención 5 de CLAUDE.md lo pide. Era un hueco preexistente
+(la línea base también marcaba 99%).
+
+#### Iteración 7 · Cierre del hueco preexistente
+**Prompt:**
+```
+(pega aquí el prompt del test de get_report)
+```
+Se agregó `test_get_report_existente_devuelve_200`. Usa `user_id=2` (no el
+valor por defecto del helper) para demostrar que el dato viene del reporte
+creado.
+
+**Nota:** Claude Code sugirió verificar con `pytest --cov=.`, pero ese comando
+mide todo el repo y no incluye `--cov-branch`. Mantuve el comando con ramas.
+
+**Medición final:**
+```
+(pega aquí la tabla completa de la última medición)
+49 passed
+```
+
+**Observación:** `core/pagination.py` marca 0 ramas porque `min()` y `max()`
+no generan ramas para coverage, aunque internamente deciden el recorte. Un
+100% de ramas no garantiza que los límites estén bien probados; por eso se
+complementa con mutaciones a mano.
+
+**Commit:** `test: caso feliz de GET /reports/{report_id} (hueco preexistente)`
 ### Mutaciones a mano
 
 ## 4. Debugging y refactorización
