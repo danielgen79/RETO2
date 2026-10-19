@@ -665,6 +665,40 @@ FAILED tests/test_users.py::test_list_users_recorrido_completo_devuelve_200_sin_
 
 **Reversión:** `git restore core/pagination.py` → `49 passed`.
 
+#### Iteración 8 · Fortalecer los tests que sobrevivieron a la mutación 2
+**Prompt:**
+```
+Una mutación manual (start = page * size en paginate) reveló que
+test_list_users_size_0_devuelve_200_con_size_1 y
+test_list_reports_size_0_devuelve_200_con_size_1 siguen pasando con el
+código roto: verifican len(items) == 1, pero no cuál item devuelven.
+
+Fortalece solo esos dos tests: además de lo que ya verifican, que
+comprueben que el único item es el primero por orden de id (id == 1).
+No toques nada más. Corre pytest y ruff check .
+```
+
+**Cambio:** los dos tests de `size=0` ahora también verifican
+`items[0]["id"] == 1`, además de la cantidad.
+
+**Verificación:** volví a aplicar la mutación 2 a mano. Ahora fallan **17**
+tests (antes 15), incluidos los dos fortalecidos:
+```
+FAILED tests/test_reports.py::test_list_reports_size_0_devuelve_200_con_size_1 - assert 2 == 1
+FAILED tests/test_users.py::test_list_users_size_0_devuelve_200_con_size_1 - assert 2 == 1
+```
+Ciclo completo: la mutación reveló una debilidad, se corrigió el test y se
+comprobó que la corrección detecta el error.
+
+**Aceptado como menor:** Claude Code señaló que los tests de `size` mayor a
+100 en los endpoints tampoco verifican qué items devuelven. Decidí no
+cambiarlos: su propósito es verificar que la ruta recorta en lugar de
+devolver 422, y el contenido de los items ya lo cubren los recorridos
+completos y los tests unitarios de `paginate`.
+
+**Nota:** la IA ofreció aplicar la mutación ella misma; la apliqué a mano.
+
+**Commit:** `test: tests de size=0 verifican el item devuelto, no solo la cantidad`
 ## 4. Debugging y refactorización
 ### Bug
 ### Refactor
