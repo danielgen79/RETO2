@@ -36,9 +36,10 @@ def test_list_reports_filtra_por_user_id(client: TestClient) -> None:
     response = client.get("/reports", params={"user_id": 1})
 
     assert response.status_code == 200
-    cuerpos = response.json()
-    assert len(cuerpos) == 1
-    assert cuerpos[0]["user_id"] == 1
+    body = response.json()
+    assert body["total"] == 1
+    assert len(body["items"]) == 1
+    assert body["items"][0]["user_id"] == 1
 
 
 def test_ids_unicos_bajo_concurrencia() -> None:
