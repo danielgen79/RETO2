@@ -354,6 +354,51 @@ no se ejecutó: las funciones lanzan `NotImplementedError`, como se espera
 en esta etapa.
 
 **Commit:** `feat: esqueleto de paginación en GET /users y GET /reports`
+
+#### Iteración 3 · Implementación
+**Prompt:**
+Implementa la lógica del esqueleto según los criterios CA-01 a CA-10 y la
+convención de Paginación de @CLAUDE.md:
+
+1. Agrega MIN_SIZE = 1 en core/pagination.py e implementa paginate:
+   recorta page a >= 1 y size a MIN_SIZE..MAX_SIZE, corta con slice y
+   devuelve Page con total sobre todos los items recibidos.
+2. Implementa list_users: obtiene los usuarios del repositorio, los ordena
+   por id ascendente y llama a paginate.
+3. Implementa list_reports: restaura el filtro por user_id que se borró en
+   el esqueleto, ordena por id ascendente y llama a paginate.
+
+No modifiques los tests todavía. Al terminar corre pytest y ruff check .
+y muéstrame el resultado completo, aunque haya tests fallando.
+
+**Revisión:** aprobé las ediciones una por una. Verifiqué:
+- El inicio del slice es `(page - 1) * size`.
+- `total = len(items)` cuenta la lista completa ya filtrada (CA-06).
+- `list_reports` restauró el filtro por `user_id` que borró el esqueleto,
+  y lo aplica antes de ordenar y paginar (CA-07).
+- Ambos servicios ordenan por `id` antes de llamar a `paginate` (CA-09).
+
+**Code smell detectado:** `paginate` usa `max(page, DEFAULT_PAGE)`, mezclando
+el valor por defecto con el mínimo. Lo dejé para el refactor del paso 4
+(introducir `MIN_PAGE`).
+
+**Resultado:**
+```
+1 failed, 15 passed
+FAILED tests/test_reports.py::test_list_reports_filtra_por_user_id
+ruff check .: All checks passed!
+```
+
+**Hallazgo:** se cumplió la predicción del plan.
+- `test_list_reports_filtra_por_user_id` falla porque lee la respuesta como
+  lista. La lógica es correcta (total: 1, items con el reporte del usuario 1).
+- `test_list_users_devuelve_los_seed` **pasa por casualidad**:
+  `len(response.json()) == 4` cuenta las 4 claves del objeto
+  (items, total, page, size), no los 4 usuarios semilla. Un test en verde
+  que ya no verifica lo que dice: verde no es probado.
+
+**Commit:** `feat: implementa paginación en GET /users y GET /reports`
+
 ### Decisiones: qué acepté, qué rechacé y por qué
 
 ## 3. Tests y cobertura
@@ -364,6 +409,9 @@ en esta etapa.
 ## 4. Debugging y refactorización
 ### Bug
 ### Refactor
+
+**Code smell:**
+hay un code smell en la primera línea: max(page, DEFAULT_PAGE) usa el valor por defecto como mínimo. Hoy ambos valen 1 y funciona, pero son conceptos distintos. Si mañana alguien cambia DEFAULT_PAGE, el mínimo cambiaría sin querer. Lo correcto sería una constante MIN_PAGE = 1, igual que hicieron con MIN_SIZE
 
 ## 5. Documentación y review
 ### Hallazgos del review
