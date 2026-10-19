@@ -701,6 +701,80 @@ completos y los tests unitarios de `paginate`.
 **Commit:** `test: tests de size=0 verifican el item devuelto, no solo la cantidad`
 ## 4. Debugging y refactorización
 ### Bug
+**Origen del bug:** durante el desarrollo no apareció ningún bug real (el
+único test que falló tras la implementación era un fallo previsto por el
+cambio de formato). Como contempla el reto, **introduje un bug a propósito**
+para practicar el debugging asistido: en `list_reports`, filtrar por
+`user_id` **después** de paginar en lugar de antes. Es un error realista en
+paginación, que puede pasar por una "optimización" inocente.
+
+```python
+reports = sorted(repository.list_all(), key=lambda report: report.id)
+result = paginate(reports, page, size)
+if user_id is not None:
+    result.items = [report for report in result.items if report.user_id == user_id]
+return result
+```
+
+**Síntoma:**
+```
+FAILED tests/test_reports.py::test_list_reports_filtra_por_user_id - assert 2 == 1
+FAILED tests/test_reports.py::test_list_reports_user_id_con_paginacion_devuelve_200_con_total_del_filtro - assert 7 == 5
+FAILED tests/test_reports.py::test_list_reports_user_id_sin_reportes_devuelve_200_con_items_vacio - assert 3 == 0
+```
+Patrón: en los tres casos `total` es mayor al esperado, y solo fallan los
+tests que combinan el filtro con la paginación.
+
+**Prompt (hipótesis antes que fix):**
+Tengo 3 tests fallando en tests/test_reports.py:
+
+FAILED test_list_reports_filtra_por_user_id - assert 2 == 1
+FAILED test_list_reports_user_id_con_paginacion_devuelve_200_con_total_del_filtro - assert 7 == 5
+FAILED test_list_reports_user_id_sin_reportes_devuelve_200_con_items_vacio - assert 3 == 0
+
+Detalle de uno de ellos:
+(pega aquí el bloque completo del fallo)
+
+Comportamiento esperado (CA-06 y CA-07): total cuenta solo los reportes
+que cumplen el filtro por user_id, no todos.
+
+Antes de proponer cualquier fix:
+1. Dame 2 o 3 hipótesis de la causa, ordenadas por probabilidad.
+2. Para cada una, dime cómo confirmarla o descartarla.
+Diagnostica a partir del trace y del código actual, sin revisar el
+historial de git. No modifiques ningún archivo todavía.
+
+**Hipótesis de la IA:**
+1. El filtro se aplica después de `paginate`, así que `total` cuenta todos
+   los reportes (muy probable). Explicaba los tres números del trace.
+2. `Page` permite reasignar `items` sin revalidar, lo que deja un objeto
+   incoherente sin lanzar error (síntoma relacionado, no la causa).
+3. Los tests están mal planteados (descartada: contradice CA-06 y CA-07).
+
+**Confirmación:** ejecuté la prueba propuesta por la IA antes de aplicar el fix:
+```
+> python -c "... service.list_reports(1, 20, user_id=99) ..."
+2 []
+```
+`total` = 2 (sin filtrar) e `items` vacío (filtrado): hipótesis 1 confirmada.
+
+**Fix mínimo:** filtrar → ordenar → paginar, sin reasignar `result.items`.
+`git diff` contra el último commit muestra que el fix restauró el código
+original; el único cambio neto es `r` → `report`, que además resuelve el
+pendiente de la convención 4.
+
+**Test de regresión:** no hizo falta crear uno nuevo. Los tres tests que
+detectaron el bug (CA-06 y CA-07) son los que protegen este caso.
+
+**Resultado:** `49 passed`, `ruff check .` limpio.
+
+**Limitación del ejercicio:** Claude Code reconoció que el archivo "no
+coincidía con lo que había dejado", es decir, recordaba su propia versión
+del código dentro de la sesión. Ante un bug real no tendría esa ventaja.
+Para un diagnóstico más limpio habría convenido usar una sesión nueva o
+`/clear` antes de presentar el trace.
+
+**Commit:** `fix: list_reports filtra antes de paginar (ejercicio de debugging)`
 ### Refactor
 
 **Code smell:**
