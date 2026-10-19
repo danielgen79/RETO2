@@ -605,6 +605,65 @@ complementa con mutaciones a mano.
 
 **Commit:** `test: caso feliz de GET /reports/{report_id} (hueco preexistente)`
 ### Mutaciones a mano
+#### Mutación 1 · Límite máximo de size
+**Cambio:** `core/pagination.py`: `MAX_SIZE = 100` → `MAX_SIZE = 1000`.
+
+**Resultado:** **detectada**. 4 tests fallaron:
+```
+FAILED tests/test_pagination.py::test_paginate_size_mayor_a_100_se_recorta_a_100[101] - assert 101 == 100
+FAILED tests/test_pagination.py::test_paginate_size_mayor_a_100_se_recorta_a_100[1000] - assert 1000 == 100
+FAILED tests/test_reports.py::test_list_reports_size_mayor_a_100_devuelve_200_con_size_100 - assert 500 == 100
+FAILED tests/test_users.py::test_list_users_size_mayor_a_100_devuelve_200_con_size_100 - assert 500 == 100
+```
+
+**Análisis:**
+- La detectan tanto los tests unitarios como los de integración.
+- El caso `size=101` detecta incluso un desplazamiento mínimo del límite.
+- `test_paginate_size_100_se_mantiene` siguió pasando, como se esperaba:
+  protege el otro lado del límite.
+- Confirma la corrección hecha a la IA: si los tests importaran `MAX_SIZE`,
+  esperarían 1000 y la mutación pasaría sin ser detectada.
+
+**Reversión:** `git restore core/pagination.py` → `49 passed`.
+
+#### Mutación 2 · Inicio del slice
+**Cambio:** `core/pagination.py`: `start = (page - 1) * size` → `start = page * size`
+(error de desplazamiento: la página 1 empieza donde debería empezar la 2).
+
+**Resultado:** **detectada**. 15 tests fallaron:
+FAILED tests/test_pagination.py::test_paginate_size_menor_a_1_se_recorta_a_1[0] - assert [2] == [1]
+FAILED tests/test_pagination.py::test_paginate_size_menor_a_1_se_recorta_a_1[-1] - assert [2] == [1]
+FAILED tests/test_pagination.py::test_paginate_size_menor_a_1_se_recorta_a_1[-50] - assert [2] == [1]
+FAILED tests/test_pagination.py::test_paginate_size_100_se_mantiene - assert 50 == 100
+FAILED tests/test_pagination.py::test_paginate_size_mayor_a_100_se_recorta_a_100[101] - assert 50 == 100
+FAILED tests/test_pagination.py::test_paginate_size_mayor_a_100_se_recorta_a_100[1000] - assert 50 == 100
+FAILED tests/test_pagination.py::test_paginate_page_menor_a_1_se_recorta_a_1[0] - assert [3, 4] == [1, 2]
+FAILED tests/test_pagination.py::test_paginate_page_menor_a_1_se_recorta_a_1[-1] - assert [3, 4] == [1, 2]
+FAILED tests/test_pagination.py::test_paginate_page_menor_a_1_se_recorta_a_1[-50] - assert [3, 4] == [1, 2]
+FAILED tests/test_pagination.py::test_paginate_pagina_2_con_size_10_devuelve_items_11_a_20 - assert [21, 22, 23, 24, 25] == [11, 12, 13, 14, 15, 16, ...]
+FAILED tests/test_pagination.py::test_paginate_ultima_pagina_parcial_devuelve_5_items_y_size_10 - assert [] == [21, 22, 23, 24, 25]
+FAILED tests/test_reports.py::test_list_reports_filtra_por_user_id - assert 0 == 1
+FAILED tests/test_reports.py::test_list_reports_recorrido_completo_devuelve_200_sin_repetir_ni_saltar - assert [3, 4, 5] == [1, 2, 3, 4, 5]
+FAILED tests/test_users.py::test_list_users_devuelve_los_seed - assert 0 == 4
+FAILED tests/test_users.py::test_list_users_recorrido_completo_devuelve_200_sin_repetir_ni_saltar - assert [3, 4] == [1, 2, 3, 4]
+
+**Análisis:**
+- `test_list_users_devuelve_los_seed` falló (`0 == 4`). En su versión
+  original, que contaba las claves del objeto, habría pasado: la corrección
+  de la iteración 4 hizo que este test detecte errores reales.
+- El test de la página 2 compara valores exactos y señala directamente el
+  desplazamiento (`[21, ...] == [11, ...]`).
+- **Tests que sobrevivieron y revelan una debilidad:**
+  `test_list_users_size_0_devuelve_200_con_size_1` y
+  `test_list_reports_size_0_devuelve_200_con_size_1` siguieron pasando.
+  Verifican `len(items) == 1` pero no *cuál* item: con la mutación
+  devolvían el segundo registro en lugar del primero. Verifican cantidad,
+  no contenido.
+- Los tests de valores por defecto y de página fuera de rango también
+  sobrevivieron, como era de esperar: no verifican el contenido de los
+  items porque no es su propósito.
+
+**Reversión:** `git restore core/pagination.py` → `49 passed`.
 
 ## 4. Debugging y refactorización
 ### Bug
