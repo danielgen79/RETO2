@@ -30,6 +30,21 @@ def test_get_report_inexistente_devuelve_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
+def test_get_report_existente_devuelve_200(client: TestClient) -> None:
+    """Caso feliz de GET /reports/{report_id}: devuelve el reporte pedido."""
+    # Arrange
+    _create_reports(client, 1, user_id=2)
+
+    # Act
+    response = client.get("/reports/1")
+
+    # Assert
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == 1
+    assert body["user_id"] == 2
+
+
 def test_list_reports_filtra_por_user_id(client: TestClient) -> None:
     client.post("/reports", json=_payload(user_id=1, title="de user 1"))
     client.post("/reports", json=_payload(user_id=2, title="de user 2"))
