@@ -407,6 +407,8 @@ ruff check .: All checks passed!
 | `paginate` ordena por `id` | **Rechazada.** El servicio filtra y ordena; `paginate` solo recorta y corta. | Una función genérica `Page[T]` no debe asumir que todo `T` tiene `id`. Acoplaba la lógica compartida a un detalle de los recursos actuales. |
 | "Los valores límite no se repiten en tests" (convención propuesta para CLAUDE.md) | **Rechazada.** Los tests de límites verifican los valores literales (1, 20, 100). | Si los tests importan `MAX_SIZE`, una mutación de 100 a 1000 cambia también el valor esperado y el test sigue en verde. La regla habría hecho invisibles las mutaciones. |
 | Helper de tests `_crear_reportes(client, cantidad)` | **Rechazada.** Renombrado a `_create_reports(client, count)` con `assert` de 201. | Rompía la convención 4 (identificadores en inglés). El `assert` hace que un fallo al crear datos se reporte en su origen. |
+| Versión 1.0.0 en CHANGELOG, `main.py` y `pyproject.toml` | **Rechazada.** Versión 0.2.0. | En 0.x, los cambios incompatibles suben la versión menor; 1.0.0 declararía la API estable. |
+| Enlaces de versión hacia la página de Keep a Changelog | **Rechazada.** Se quitaron. | Deben apuntar a comparaciones del repositorio, y no hay tags de versión. |
 #### Aceptado
 
 | Propuesta de la IA | Por qué la acepté |
@@ -992,5 +994,56 @@ haya probado. Ejecutar cada ejemplo encontró tres errores en un README que
 parecía terminado.
 
 **Commit:** `docs: README actualizado con paginación, ejemplos verificados y criterios`
+#### CHANGELOG
+**Prompt:**
+Crea CHANGELOG.md en la raíz siguiendo el formato de Keep a Changelog
+(https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
+
+Primero dime si el proyecto declara una versión en algún lado (por
+ejemplo, FastAPI(version=...) en main.py o un pyproject.toml). Si existe,
+usa la siguiente versión MAYOR, porque hay un cambio incompatible, y
+actualízala también donde esté declarada. Si no existe, usa 1.0.0 sin
+tocar ningún otro archivo.
+
+Fecha: 2026-10-19. Incluye, solo con lo que realmente está en la rama:
+
+- Cambiado (incompatible): GET /users y GET /reports devuelven
+  {items, total, page, size} en lugar de una lista.
+- Agregado: parámetros page y size con sus valores por defecto y el
+  recorte; core/pagination.py con Page[T] y paginate; combinación con
+  ?user_id=; convención de Paginación en CLAUDE.md; tests de paginación
+  unitarios y de integración; test del caso feliz de GET /reports/{id}.
+- Documentación: README reescrito con ejemplos verificados y criterios.
+
+No incluyas el bug de "filtrar después de paginar": se introdujo a
+propósito como ejercicio y nunca llegó a un commit. Agrega al inicio una
+sección [Sin publicar] vacía, como pide el formato.
+
+**Decisión de versión:** el proyecto estaba en **0.1.0**. Mi prompt pedía
+"la siguiente versión mayor", y la IA propuso 1.0.0. Lo **rechacé**: en
+versionado semántico, mientras el proyecto está en 0.x los cambios
+incompatibles suben la versión menor. Pasar a 1.0.0 declararía la API como
+estable, y no es el caso. Versión final: **0.2.0**.
+
+**Rechazo de los enlaces:** la primera versión del CHANGELOG terminaba con
+enlaces de `[Sin publicar]` y `[0.2.0]` que apuntaban a la página de Keep a
+Changelog. En ese formato deben apuntar a la comparación de versiones del
+repositorio; como no hay tags de versión, pedí quitarlos.
+
+**Versión en todos los lugares:** la IA encontró la versión declarada en
+`main.py` y en `pyproject.toml`, y actualizó ambas para que no quedaran
+dos valores distintos. Me lo avisó en lugar de hacerlo en silencio.
+
+**Observaciones aceptadas como menores:**
+- "Documentación" no es una sección estándar de Keep a Changelog, pero es
+  clara y útil.
+- El título de la app sigue siendo "API de usuarios", aunque incluye
+  reportes desde antes de esta feature; queda fuera del alcance.
+
+**Contenido:** el cambio incompatible aparece primero y marcado. No se
+incluyó el bug de "filtrar después de paginar", porque se introdujo como
+ejercicio y nunca llegó a un commit.
+
+**Commit:** `docs: CHANGELOG 0.2.0 y versión actualizada`
 ## Reflexión final
 
