@@ -11,6 +11,12 @@ def _payload(user_id: int = 1, title: str = "Incidencia", body: str = "algo pasÃ
     return {"user_id": user_id, "title": title, "body": body}
 
 
+def _create_reports(client: TestClient, count: int, user_id: int = 1) -> None:
+    for i in range(count):
+        response = client.post("/reports", json=_payload(user_id=user_id, title=f"reporte {i}"))
+        assert response.status_code == 201
+
+
 def test_create_report_devuelve_201(client: TestClient) -> None:
     response = client.post("/reports", json=_payload())
 
@@ -58,12 +64,6 @@ def test_list_reports_filtra_por_user_id(client: TestClient) -> None:
     assert body["items"][0]["user_id"] == 1
 
 
-def _create_reports(client: TestClient, count: int, user_id: int = 1) -> None:
-    for i in range(count):
-        response = client.post("/reports", json=_payload(user_id=user_id, title=f"reporte {i}"))
-        assert response.status_code == 201
-
-
 def test_list_reports_sin_parametros_devuelve_200_con_page_1_y_size_20(
     client: TestClient,
 ) -> None:
@@ -108,6 +108,22 @@ def test_list_reports_size_0_devuelve_200_con_size_1(client: TestClient) -> None
     body = response.json()
     assert body["size"] == 1
     assert len(body["items"]) == 1
+    assert body["items"][0]["id"] == 1
+
+
+@pytest.mark.parametrize("page", [0, -5])
+def test_list_reports_page_menor_a_1_devuelve_200_con_page_1(client: TestClient, page: int) -> None:
+    """CA-03: page=0 y page=-5 se recortan a 1 y no son un error."""
+    # Arrange
+    _create_reports(client, 3)
+
+    # Act
+    response = client.get("/reports", params={"page": page})
+
+    # Assert
+    assert response.status_code == 200
+    body = response.json()
+    assert body["page"] == 1
     assert body["items"][0]["id"] == 1
 
 

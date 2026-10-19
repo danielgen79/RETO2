@@ -103,6 +103,21 @@ def test_list_users_size_0_devuelve_200_con_size_1(client: TestClient) -> None:
     assert body["items"][0]["id"] == 1
 
 
+@pytest.mark.parametrize("page", [0, -5])
+def test_list_users_page_menor_a_1_devuelve_200_con_page_1(client: TestClient, page: int) -> None:
+    """CA-03: page=0 y page=-5 se recortan a 1 y no son un error."""
+    # Arrange: 4 usuarios semilla
+
+    # Act
+    response = client.get("/users", params={"page": page})
+
+    # Assert
+    assert response.status_code == 200
+    body = response.json()
+    assert body["page"] == 1
+    assert body["items"][0]["id"] == 1
+
+
 @pytest.mark.parametrize(
     "params",
     [{"page": "abc"}, {"size": "2.5"}, {"page": ""}],
