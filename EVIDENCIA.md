@@ -912,4 +912,85 @@ En español, mismo estilo que el docstring de paginate. Corre pytest y
 **Resultado:** `53 passed`, `ruff check .` limpio.
 
 **Commit:** `docs: docstrings de servicios y rutas paginadas`
+#### README
+El README de la rama base describía la tarea de la Clase 1. Se reescribió
+para alguien nuevo en el proyecto.
+
+**Prompt inicial:**
+```
+(pega aquí el prompt del README)
+```
+
+**Primera versión:** completa y convincente, pero **no verificada**. La IA
+reconoció que no había ejecutado ningún comando y que algunos valores eran
+inventados.
+
+**Verificación contra la API real** (servidor con `uvicorn main:app --reload`):
+
+| Ejemplo del README | Resultado real | Problema |
+|---|---|---|
+| `GET /users?page=1&size=2` | Usuarios y totales correctos | `created_at` no es fijo: es la hora de arranque |
+| `GET /users?size=500` | `size: 100`, `total: 4` | Ninguno |
+| `GET /reports?user_id=1...` | `items: []`, `total: 0` | El README mostraba 5 reportes que no existen al arrancar |
+| `GET /users?page=abc` | `422 Unprocessable Content` | El README decía `Unprocessable Entity` |
+
+**Prompt de corrección:**
+El README.md actual está desactualizado: describe la tarea de la Clase 1.
+Reescríbelo para alguien nuevo en el proyecto. Léelo primero, junto con
+CLAUDE.md, y conserva lo que siga siendo válido.
+
+Secciones:
+1. Qué es el proyecto (API de usuarios y reportes, FastAPI, datos en memoria).
+2. Instalación y ejecución en Windows (venv, pip install, uvicorn) y la URL
+   de /docs.
+3. Tests, lint y cobertura, con los comandos exactos:
+   pytest, ruff check . y
+   pytest --cov=core --cov=users --cov=reports --cov-branch --cov-report=term-missing
+4. Endpoints: tabla con todos los endpoints del proyecto.
+5. Paginación, con:
+   - Parámetros, valores por defecto, recorte y forma de la respuesta.
+   - Ejemplos con curl y la respuesta JSON de ejemplo, incluido uno de
+     GET /reports con user_id.
+   - Tabla de criterios de aceptación CA-01 a CA-10, explicando que los
+     tests citan esos códigos en sus docstrings.
+   - Comportamientos a tener en cuenta: el recorte es silencioso (el
+     cliente lo ve en size de la respuesta); un user_id sin reportes da 200
+     con total 0; el orden por id garantiza un recorrido estable mientras no
+     haya borrados.
+   - Cambio incompatible: GET /users y GET /reports pasaron de devolver una
+     lista a devolver un objeto paginado.
+6. Estructura del proyecto y enlace a CLAUDE.md para las convenciones.
+7. Extensiones futuras: si aparece un tercer recurso paginado, conviene
+   extraer page/size a una dependencia compartida.
+
+Los criterios están en EVIDENCIA.md, sección 1. No toques otros archivos.
+
+**Correcciones:** nota sobre `created_at`; ejemplo de `POST /reports` para
+`cmd` antes de listar; texto y cuerpo reales del 422; nota de `curl.exe` en
+PowerShell. Pedí además la ubicación de la regla "422 si el cuerpo supera
+500 caracteres": existe en `reports/service.py:7` y `:11-14`, cubierta por
+`test_create_report_body_muy_largo_devuelve_422`.
+
+**Prueba final, copiando el POST del README:**
+```
+> curl -X POST "http://127.0.0.1:8000/reports" ... (copiado del README)
+{"user_id":1,"title":"reporte 0","body":"algo pasó","id":1,"created_at":"..."}
+
+> curl "http://127.0.0.1:8000/reports?user_id=1&page=1&size=2"
+{"items":[{...,"id":1,...}],"total":1,"page":1,"size":2}
+```
+
+**Otros hallazgos:**
+- La IA no incluyó `GET /users/search` porque no existe en el código,
+  aunque el README viejo y CLAUDE.md lo mencionan: desfase entre
+  documentación y código.
+- El README incluye la tabla de criterios CA-01 a CA-10, que resuelve el
+  hallazgo 13 del review.
+
+**Lección:** la documentación generada por IA se ve completa aunque nadie la
+haya probado. Ejecutar cada ejemplo encontró tres errores en un README que
+parecía terminado.
+
+**Commit:** `docs: README actualizado con paginación, ejemplos verificados y criterios`
 ## Reflexión final
+
