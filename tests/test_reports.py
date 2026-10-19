@@ -108,6 +108,7 @@ def test_list_reports_size_0_devuelve_200_con_size_1(client: TestClient) -> None
     body = response.json()
     assert body["size"] == 1
     assert len(body["items"]) == 1
+    assert body["items"][0]["id"] == 1
 
 
 @pytest.mark.parametrize(
