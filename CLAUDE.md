@@ -42,7 +42,9 @@ el proyecto corre sin infraestructura.
   que recibe (ya filtrada). Una página fuera de rango devuelve `items: []` con el
   `total` correcto.
 - Los valores por defecto y límites viven como constantes en `core/pagination.py`
-  (`DEFAULT_PAGE`, `DEFAULT_SIZE`, `MAX_SIZE`) y las rutas las reutilizan.
+  (`DEFAULT_PAGE`, `MIN_PAGE`, `DEFAULT_SIZE`, `MIN_SIZE`, `MAX_SIZE`) y las rutas las
+  reutilizan. Los valores por defecto y los límites son conceptos distintos: el recorte
+  usa `MIN_PAGE`/`MIN_SIZE`/`MAX_SIZE`, nunca los `DEFAULT_*`.
 - Los tests de límites verifican los **valores literales** del criterio (1, 20, 100),
   no las constantes, para que un cambio accidental de las constantes haga fallar el test.
 - Todo endpoint de lista paginada lleva tests de: valores por defecto, recorte de
